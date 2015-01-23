@@ -1,4 +1,4 @@
-package fr.acinq.paymium
+package fr.acinq.caching
 
 import spray.caching._
 
