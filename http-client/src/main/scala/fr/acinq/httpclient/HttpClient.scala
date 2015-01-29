@@ -7,6 +7,7 @@ import spray.http._
 import spray.http.parser.HttpParser
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.Try
 
 /**
  * Created by PM on 16/01/2015.
@@ -54,7 +55,7 @@ class Executor(req: HttpRequest) {
       .getOrElse(HttpEntity(r.getResponseBodyAsBytes))
 
     HttpResponse(
-      status = r.getStatusCode,
+      status = Try(StatusCode.int2StatusCode(r.getStatusCode)).toOption.getOrElse(StatusCodes.registerCustom(r.getStatusCode, "")),
       entity = entity,
       headers = headers
     )
