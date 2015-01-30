@@ -1,7 +1,8 @@
 package fr.acinq.paymium
 
 import java.io.IOException
-import java.text.SimpleDateFormat
+import java.text.{DecimalFormatSymbols, SimpleDateFormat}
+import java.util.Locale
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
@@ -64,7 +65,7 @@ class PaymiumClient(credentials_opt: Option[Credentials] = None)(implicit client
     handleError(sign(Get("https://paymium.com/api/v1/user")).execute).extractJson[UserInfo]
   }
 
-  val decimalFormat = new java.text.DecimalFormat("#.########")
+  val decimalFormat = new java.text.DecimalFormat("#.########", DecimalFormatSymbols.getInstance(Locale.US))
 
   def buy(btcAmount: Double): Future[Order] = {
     require(sha256_HMAC_opt.isDefined, "token credentials need to be set for this call")
@@ -76,6 +77,16 @@ class PaymiumClient(credentials_opt: Option[Credentials] = None)(implicit client
     require(sha256_HMAC_opt.isDefined, "token credentials need to be set for this call")
     handleError(sign(Post("https://paymium.com/api/v1/user/orders",
       FormData(Map("type" -> "MarketOrder", "currency" -> "EUR", "direction" -> "sell", "amount" -> decimalFormat.format(btcAmount)))))execute).extractJson[Order]
+  }
+
+  def orders(): Future[List[Order]] = {
+    require(sha256_HMAC_opt.isDefined, "token credentials need to be set for this call")
+    handleError(sign(Get(s"https://paymium.com/api/v1/user/orders")).execute).extractJson[List[Order]]
+  }
+
+  def order(orderId: String): Future[Order] = {
+    require(sha256_HMAC_opt.isDefined, "token credentials need to be set for this call")
+    handleError(sign(Get(s"https://paymium.com/api/v1/user/orders/$orderId")).execute).extractJson[Order]
   }
 
 

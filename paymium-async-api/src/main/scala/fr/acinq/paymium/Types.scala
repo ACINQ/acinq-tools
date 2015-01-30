@@ -38,9 +38,9 @@ case class Order(
                   created_at: Date,
                   currency: String,
                   `type`: String,
-                  traded_btc: Double,
-                  traded_currency: Double,
-                  direction: String,
+                  traded_btc: Option[Double],
+                  traded_currency: Option[Double],
+                  direction: Option[String],
                   price: Option[Double],
                   account_operations: List[AccountOperation]
                   )

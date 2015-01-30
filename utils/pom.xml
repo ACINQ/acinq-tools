@@ -5,10 +5,10 @@
     <parent>
         <groupId>fr.acinq.acinq-tools</groupId>
         <artifactId>acinq-tools_2.11</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>1.0-RC5</version>
     </parent>
 
-    <artifactId>simple-cache_2.11</artifactId>
+    <artifactId>utils_2.11</artifactId>
     <packaging>jar</packaging>
 
     <name>${project.artifactId}</name>
@@ -18,6 +18,12 @@
             <groupId>io.spray</groupId>
             <artifactId>spray-caching_2.11</artifactId>
             <version>${spray.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-actor_${scala.version.short}</artifactId>
+            <version>${akka.version}</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 </project>

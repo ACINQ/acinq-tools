@@ -4,12 +4,12 @@
 
     <groupId>fr.acinq.acinq-tools</groupId>
     <artifactId>acinq-tools_2.11</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0-RC5</version>
     <packaging>pom</packaging>
 
     <modules>
         <module>http-client</module>
-		<module>simple-cache</module>
+		<module>utils</module>
         <module>bitcoin-async-api</module>
         <module>paymium-async-api</module>
     </modules>
@@ -152,6 +152,12 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_2.11</artifactId>
+            <version>2.2.4</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
