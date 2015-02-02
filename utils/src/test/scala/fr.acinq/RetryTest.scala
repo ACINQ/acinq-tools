@@ -1,5 +1,6 @@
 package fr.acinq.caching
 
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 import fr.acinq.retry._
@@ -17,6 +18,14 @@ import scala.concurrent.duration._
 class RetryTest extends FunSuite {
 
   import scala.concurrent.ExecutionContext.Implicits.global
+
+  test("delay") {
+    val delayed = delay(5 seconds)
+    intercept[TimeoutException] {
+      Await.result(delayed, 3 seconds)
+    }
+    Await.result(delayed, 10 seconds)
+  }
 
   test("success first time no condition") {
     assert(47 == Await.result(retry(2)(Future.successful(47L)), 30 seconds))
@@ -66,6 +75,17 @@ class RetryTest extends FunSuite {
       assert(3 == Await.result(retryUntil(3)(f)(_ == 4), 30 seconds))
     }
     assert(3 == count.get())
+  }
+
+  test("fails right away") {
+    val count = new AtomicInteger()
+    def f = Future[Int] {
+      println(count.incrementAndGet())
+      throw new RuntimeException
+    }
+    intercept[RuntimeException] {
+      Await.result(retryUntil(3, 2 seconds)(f)(_ == 4), 30 seconds)
+    }
   }
 
 }

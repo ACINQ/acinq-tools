@@ -13,10 +13,10 @@ package object retry {
   private val actorSystem = ActorSystem()
   private val scheduler = actorSystem.scheduler
 
-  def delay[T](interval: FiniteDuration, f: Future[T])(implicit ec: ExecutionContext): Future[T] = {
+  def delay(interval: FiniteDuration)(implicit ec: ExecutionContext): Future[Unit] = {
     val p = Promise[Unit]()
     scheduler.scheduleOnce(interval)(p.success())
-    p.future.flatMap(_ => f)
+    p.future
   }
 
   case class ConditionsNotMetException[T](lastResult: T)(implicit mf: Manifest[T]) extends RuntimeException
@@ -34,7 +34,7 @@ package object retry {
       case r if until(r) => Future.successful(r)
       case r => throw new ConditionsNotMetException[T](r)
     }) recoverWith {
-      case _ if n > 1 => delay(interval, retryUntil(n - 1, interval)(f)(until))
+      case _ if n > 1 => delay(interval).flatMap(x => retryUntil(n - 1, interval)(f)(until))
     }
   }
 
