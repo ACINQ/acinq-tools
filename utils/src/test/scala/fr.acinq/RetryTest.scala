@@ -80,7 +80,6 @@ class RetryTest extends FunSuite {
   test("fails right away") {
     val count = new AtomicInteger()
     def f = Future[Int] {
-      println(count.incrementAndGet())
       throw new RuntimeException
     }
     intercept[RuntimeException] {
