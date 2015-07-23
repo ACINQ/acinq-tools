@@ -17,6 +17,8 @@ import org.json4s.DefaultFormats
 import org.json4s.jackson.JsonMethods.parse
 import StatusCodes._
 
+import scala.util.Try
+
 case class Credentials(token: String, key: String)
 
 class PaymiumClientError(val status: Int, val error: Error) extends IOException(s"Paymium API returned an error (status: $status, reason: ${error.errors.mkString(",")}")
@@ -38,7 +40,7 @@ class PaymiumClient(credentials_opt: Option[Credentials] = None)(implicit client
 
   def handleError(response: Future[HttpResponse]) = response.flatMap(_ match {
     case HttpResponse(status, _, _, _) if status == OK || status == Created => response
-    case HttpResponse(status, body, _, _) => throw new PaymiumClientError(status.intValue, parse(body.asString).extract[Error])
+    case HttpResponse(status, body, _, _) => throw new PaymiumClientError(status.intValue, Try(parse(body.asString).extract[Error]).getOrElse(Error(List(body.asString))))
   })
 
   def sign(request: HttpRequest) = {
