@@ -9,9 +9,10 @@
 
     <modules>
         <module>http-client</module>
-		<module>utils</module>
+        <module>utils</module>
         <module>bitcoin-async-api</module>
         <module>paymium-async-api</module>
+        <module>aws-async-api</module>
     </modules>
 
     <name>${project.artifactId}</name>
