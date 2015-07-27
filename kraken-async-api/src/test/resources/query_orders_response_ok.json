@@ -1,0 +1,31 @@
+{
+  "error": [],
+  "result": {
+    "OS2SEF-EAXMB-LQDM6N": {
+      "refid": null,
+      "userref": null,
+      "status": "closed",
+      "reason": null,
+      "opentm": 1437479806.9402,
+      "closetm": 1437479806.9454,
+      "starttm": 0,
+      "expiretm": 0,
+      "descr": {
+        "pair": "XBTEUR",
+        "type": "sell",
+        "ordertype": "market",
+        "price": "0",
+        "price2": "0",
+        "leverage": "none",
+        "order": "sell 0.05000000 XBTEUR @ market"
+      },
+      "vol": "0.05000000",
+      "vol_exec": "0.05000000",
+      "cost": "12.79950",
+      "fee": "0.04480",
+      "price": "255.99000",
+      "misc": "",
+      "oflags": "fciq"
+    }
+  }
+}
