@@ -7,7 +7,7 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 
-import scala.concurrent.Await
+import scala.concurrent.{Future, ExecutionContext, Await}
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
@@ -68,5 +68,19 @@ class KrakenClientSpec extends FlatSpec {
     val headers = request.headers.map(h => h.name -> h.value).toMap
     assert(headers("Api-Key") === apiKey)
     assert(headers("Api-Sign") === "0kiY7kL3N+4I6+xMjzgO15TP8fLG+G9q893OwwOXmMAmgeJ1q0HBiGSX4dTmjaGsMjZ3381dGfSyk8f0RwxhCg==")
+  }
+  it should "be thread safe" in {
+    val apiKey = "foo"
+    val apiSecret = new String(Base64.getEncoder.encode("foobar".getBytes("UTF-8")))
+    val client = new KrakenClient(apiKey, apiSecret)
+    val request = client.buildPrivateRequest("Balance", Map("nonce" -> "1437829049101405200" /*"1436437266579315900"*/))
+    val signature = KrakenClient.sign(apiSecret, request)
+    assert(signature === "0kiY7kL3N+4I6+xMjzgO15TP8fLG+G9q893OwwOXmMAmgeJ1q0HBiGSX4dTmjaGsMjZ3381dGfSyk8f0RwxhCg==")
+
+    import scala.concurrent.ExecutionContext.Implicits.global
+    val futures = for (i <- 0 to 5000) yield Future(KrakenClient.sign(apiSecret, request))
+    val future = Future.sequence(futures)
+    val result = Await.result(future, 10 seconds)
+    result.map(sig => assert(sig === signature))
   }
 }
