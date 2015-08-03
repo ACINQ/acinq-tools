@@ -9,7 +9,8 @@ import javax.crypto.spec.SecretKeySpec
 
 import com.ning.http.client._
 import fr.acinq.httpclient.HttpClient._
-import org.json4s.JsonAST.{JDouble, JString}
+import org.json4s.JValue
+import org.json4s.JsonAST._
 import org.json4s.{JValue, DefaultFormats}
 import org.json4s.jackson.JsonMethods
 import spray.http._
@@ -17,6 +18,91 @@ import spray.httpx.RequestBuilding._
 
 import scala.compat.Platform
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
+
+case class PriceVolume(price: Double, volume: Double)
+
+case class TimeValue(today: Double, last_24_hours: Double)
+
+case class CurrencyPairTicker(ask: PriceVolume,
+                              bid: PriceVolume,
+                              last_trade_closed: PriceVolume,
+                              volume: TimeValue,
+                              volume_weighted_average_price: TimeValue,
+                              number_of_trades: TimeValue,
+                              low: TimeValue,
+                              high: TimeValue,
+                              opening_price: Double)
+
+object Balance {
+  def extract(result: JValue): Map[String, Double] = {
+    implicit val formats = new DefaultFormats {
+      override def dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    }
+    result.extract[Map[String, String]].mapValues(_.toDouble)
+  }
+}
+
+object Ticker {
+  def extract(result: JValue): Ticker = {
+    implicit val formats = new DefaultFormats {
+      override def dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    }
+    val result1 = result.transformField {
+      case ("a", JArray(JString(v1) :: JString(v2) :: _)) => ("ask", JObject(List(("price", JDouble(v1.toDouble)), ("volume", JDouble(v2.toDouble)))))
+      case ("b", JArray(JString(v1) :: JString(v2) :: _)) => ("bid", JObject(List(("price", JDouble(v1.toDouble)), ("volume", JDouble(v2.toDouble)))))
+      case ("c", JArray(JString(v1) :: JString(v2) :: Nil)) => ("last_trade_closed", JObject(List(("price", JDouble(v1.toDouble)), ("volume", JDouble(v2.toDouble)))))
+      case ("v", JArray(JString(v1) :: JString(v2) :: Nil)) => ("volume", JObject(List(("today", JDouble(v1.toDouble)), ("last_24_hours", JDouble(v2.toDouble)))))
+      case ("p", JArray(JString(v1) :: JString(v2) :: Nil)) => ("volume_weighted_average_price", JObject(List(("today", JDouble(v1.toDouble)), ("last_24_hours", JDouble(v2.toDouble)))))
+      case ("t", JArray(JInt(v1) :: JInt(v2) :: Nil)) => ("number_of_trades", JObject(List(("today", JDouble(v1.toDouble)), ("last_24_hours", JDouble(v2.toDouble)))))
+      case ("l", JArray(JString(v1) :: JString(v2) :: Nil)) => ("low", JObject(List(("today", JDouble(v1.toDouble)), ("last_24_hours", JDouble(v2.toDouble)))))
+      case ("h", JArray(JString(v1) :: JString(v2) :: Nil)) => ("high", JObject(List(("today", JDouble(v1.toDouble)), ("last_24_hours", JDouble(v2.toDouble)))))
+      case ("o", JString(v)) => ("opening_price", JDouble(v.toDouble))
+    }
+    result1.extract[Map[String, CurrencyPairTicker]]
+  }
+}
+
+object OrderInfo {
+  implicit val formats = new DefaultFormats {
+    override def dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+  }
+
+  def extract(result: JValue): Map[String, OrderInfo] = {
+    result.transformField({
+      case (k, JString(v)) if k == "cost" | k == "fee" | k == "price" | k == "vol" | k == "vol_exec" => (k, JDouble(v.toDouble))
+    }).extract[Map[String, JValue]].mapValues(_.extract[OrderInfo])
+  }
+}
+
+case class OrderInfo(refid: String,
+                     userref: String,
+                     status: String,
+                     reason: String,
+                     opentm: Double,
+                     closetm: Double,
+                     starttm: Double,
+                     expiretm: Double,
+                     descr: Map[String, String],
+                     vol: Double,
+                     vol_exec: Double,
+                     cost: Double,
+                     fee: Double,
+                     price: Double,
+                     misc: String,
+                     oflags: String)
+
+object AddOrderResponse {
+  implicit val formats = new DefaultFormats {
+    override def dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+  }
+
+  def extract(result: JValue): AddOrderResponse = {
+    result.extract[AddOrderResponse]
+  }
+}
+
+case class AddOrderResponse(descr: Map[String, String], txid: Seq[String])
 
 class KrakenClientError(val status: Int, val error: Seq[String] = Seq.empty[String]) extends IOException(s"Kraken API returned an error (status: $status, reason: ${error.mkString(",")}")
 
@@ -41,109 +127,13 @@ object KrakenClient {
     val XBTCAD = "XBTCAD"
   }
 
-  private case class RawCurrencyPairTicker(a: Seq[String], b: Seq[String], c: Seq[String], v: Seq[String], p: Seq[String], t: Seq[Int], l: Seq[String], h: Seq[String], o: String)
+  case class JsonRpcResponse(error: Seq[String], result: JValue)
 
-  private case class RawTickerResponse(error: Seq[String], result: Map[String, RawCurrencyPairTicker] = Map.empty[String, RawCurrencyPairTicker])
-
-  case class PriceVolume(price: Double, volume: Double)
-
-  object PriceVolume {
-    def apply(raw: Seq[String]) = new PriceVolume(raw(0).toDouble, raw(1).toDouble)
+  def getResult(json: String) : JValue = Try(JsonMethods.parse(json).extract[JsonRpcResponse]) match {
+    case Success(JsonRpcResponse(error, result)) if error.isEmpty => result
+    case Success(JsonRpcResponse(error, _)) => throw new KrakenClientError(200, error)
+    case Failure(t) => throw new IllegalArgumentException(s"cannot parse $json", t)
   }
-
-  case class TimeValue(today: Double, last_24_hours: Double)
-
-  object TimeValue {
-    def apply(raw: Seq[String]) = new TimeValue(raw(0).toDouble, raw(1).toDouble)
-  }
-
-  case class CurrencyPairTicker(ask: PriceVolume,
-                                bid: PriceVolume,
-                                last_trade_closed: PriceVolume,
-                                volume: TimeValue,
-                                volume_weighted_average_price: TimeValue,
-                                number_of_trades: TimeValue,
-                                low: TimeValue,
-                                high: TimeValue,
-                                opening_price: Double)
-
-  object CurrencyPairTicker {
-    def apply(raw: RawCurrencyPairTicker) = new CurrencyPairTicker(ask = PriceVolume(raw.a),
-      bid = PriceVolume(raw.b),
-      last_trade_closed = PriceVolume(raw.c),
-      volume = TimeValue(raw.v),
-      volume_weighted_average_price = TimeValue(raw.p),
-      number_of_trades = TimeValue(raw.t(0).toDouble, raw.t(1).toDouble),
-      low = TimeValue(raw.l),
-      high = TimeValue(raw.h),
-      opening_price = raw.o.toDouble)
-  }
-
-  type Ticker = Map[String, CurrencyPairTicker]
-
-  object Ticker {
-    def parse(json: String): Ticker = {
-      val raw = JsonMethods.parse(json).extract[RawTickerResponse]
-      if(!raw.error.isEmpty) throw new KrakenClientError(StatusCodes.OK.intValue, raw.error)
-      raw.result.mapValues(r => CurrencyPairTicker(r))
-    }
-  }
-
-  private case class RawBalanceResponse(error: Seq[String], result: Map[String, String])
-
-  type Balance = Map[String, Double]
-
-  object Balance {
-    def parse(json: String): Map[String, Double] = {
-      val raw = JsonMethods.parse(json).extract[RawBalanceResponse]
-      if(!raw.error.isEmpty) throw new KrakenClientError(StatusCodes.OK.intValue, raw.error)
-      raw.result.mapValues(_.toDouble)
-    }
-  }
-
-  object AddOrderResponse {
-
-    private[KrakenClient] case class Result(descr: Map[String, String], txid: Seq[String])
-
-    def parse(json: String): AddOrderResponse = {
-      val raw = JsonMethods.parse(json).extract[RawAddOrderResponse]
-      if(!raw.error.isEmpty) throw new KrakenClientError(StatusCodes.OK.intValue, raw.error)
-      AddOrderResponse(raw.result.get.descr, raw.result.get.txid)
-    }
-  }
-
-  private case class RawAddOrderResponse(error: Seq[String], result: Option[AddOrderResponse.Result])
-
-  case class AddOrderResponse(descr: Map[String, String], txid: Seq[String])
-
-  object OrderInfo {
-    private case class RawOrderInfo(error: Seq[String], result: Map[String, JValue])
-
-    def parse(json: String): Map[String, OrderInfo] = {
-      val raw = JsonMethods.parse(json).transformField({
-        case (k, JString(v)) if k == "cost" | k == "fee" | k == "price" | k == "vol" | k == "vol_exec" => (k, JDouble(v.toDouble))
-      }).extract[RawOrderInfo]
-      if(!raw.error.isEmpty) throw new KrakenClientError(StatusCodes.OK.intValue, raw.error)
-      raw.result.mapValues(_.extract[OrderInfo])
-    }
-  }
-
-  case class OrderInfo(refid: String,
-                       userref: String,
-                       status: String,
-                       reason: String,
-                       opentm: Double,
-                       closetm: Double,
-                       starttm: Double,
-                       expiretm: Double,
-                       descr: Map[String, String],
-                       vol: Double,
-                       vol_exec: Double,
-                       cost: Double,
-                       fee: Double,
-                       price: Double,
-                       misc: String,
-                       oflags: String)
 
   def sha256(input: Seq[Byte]): Array[Byte] = {
     val md = MessageDigest.getInstance("SHA-256")
@@ -185,10 +175,12 @@ class KrakenClient(apiKey: String, apiSecret: String, baseUri: String = "https:/
 
   lazy val apiSecretKey = Base64.getDecoder.decode(apiSecret)
 
-  private def handleError(response: Future[HttpResponse]) = response.flatMap(_ match {
-    case HttpResponse(status, _, _, _) if status == StatusCodes.OK => response
-    case HttpResponse(status, body, _, _) => throw new KrakenClientError(status.intValue)
-  })
+  def call(request: HttpRequest): Future[JValue]  = {
+    request.execute.map(response => response match {
+      case HttpResponse(StatusCodes.OK, body, _, _) => KrakenClient.getResult(body.asString)
+      case HttpResponse(status, body, _, _) => throw new KrakenClientError(status.intValue, Seq(body.asString))
+    })
+  }
 
   /**
    * builds an http request that can be used with an async http client
@@ -210,7 +202,7 @@ class KrakenClient(apiKey: String, apiSecret: String, baseUri: String = "https:/
    * @return
    */
   def ticker(currencyPairs: Seq[String] = Seq(CurrencyPair.XBTEUR)): Future[Ticker] = {
-    handleError(buildPublicRequest("Ticker", Map("pair" -> currencyPairs.mkString(","))).execute).map(r => Ticker.parse(r.entity.asString))
+    call(buildPublicRequest("Ticker", Map("pair" -> currencyPairs.mkString(",")))).map(Ticker.extract)
   }
 
   /**
@@ -240,7 +232,7 @@ class KrakenClient(apiKey: String, apiSecret: String, baseUri: String = "https:/
    * @return a [[scala.concurrent.Future[Balance] ]]
    */
   def balance: Future[Balance] = {
-    handleError(buildPrivateRequest("Balance", Map.empty[String, String]).execute).map(r => Balance.parse(r.entity.asString))
+    call(buildPrivateRequest("Balance", Map.empty[String, String])).map(Balance.extract)
   }
 
   /**
@@ -259,7 +251,27 @@ class KrakenClient(apiKey: String, apiSecret: String, baseUri: String = "https:/
    * @return a Future[AddOrderResponse]
    */
   def addOrder(parameters: Map[String, String]): Future[AddOrderResponse] = {
-    handleError(buildPrivateRequest("AddOrder", parameters).execute).map(r => AddOrderResponse.parse(r.entity.asString))
+    call(buildPrivateRequest("AddOrder", parameters)).map(AddOrderResponse.extract)
+  }
+
+  /**
+   * buy btcAmout BTC
+   * @param btcAmount amount of BTC to buy
+   * @param ec
+   * @return a Future[String] where the string will be the order id
+   */
+  def buy(btcAmount: Double)(implicit ec: ExecutionContext): Future[String] = {
+    addOrder(Map("pair" -> "XBTCZEUR", "type" -> "buy", "ordertype" -> "market", "volume" -> btcAmount.toString)).map(_.txid(0))
+  }
+
+  /**
+   * sell btcAmount BTC
+   * @param btcAmount amount of BTC to sell
+   * @param ec
+   * @return a Future[String] where the string will be the order id
+   */
+  def sell(btcAmount: Double)(implicit ec: ExecutionContext): Future[String] = {
+    addOrder(Map("pair" -> "XBTCZEUR", "type" -> "sell", "ordertype" -> "market", "volume" -> btcAmount.toString)).map(_.txid(0))
   }
 
   /**
@@ -268,6 +280,6 @@ class KrakenClient(apiKey: String, apiSecret: String, baseUri: String = "https:/
    * @return
    */
   def queryOrders(txid: String): Future[Map[String, OrderInfo]] = {
-    handleError(buildPrivateRequest("QueryOrders", Map("txid" -> txid)).execute).map(r => OrderInfo.parse(r.entity.asString))
+    call(buildPrivateRequest("QueryOrders", Map("txid" -> txid))).map(OrderInfo.extract)
   }
 }
