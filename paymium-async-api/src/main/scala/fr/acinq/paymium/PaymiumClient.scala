@@ -40,7 +40,7 @@ class PaymiumClient(credentials_opt: Option[Credentials] = None)(implicit client
 
   def handleError(response: Future[HttpResponse]) = response.flatMap(_ match {
     case HttpResponse(status, _, _, _) if status == OK || status == Created => response
-    case HttpResponse(status, body, _, _) => throw new PaymiumClientError(status.intValue, Try(parse(body.asString).extract[Error]).getOrElse(Error(List(body.asString))))
+    case HttpResponse(status, body, _, _) => Future.failed(new PaymiumClientError(status.intValue, Try(parse(body.asString).extract[Error]).getOrElse(Error(List(body.asString)))))
   })
 
   def sign(request: HttpRequest) = {
