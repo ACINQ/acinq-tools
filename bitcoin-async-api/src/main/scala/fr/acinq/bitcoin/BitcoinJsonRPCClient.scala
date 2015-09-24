@@ -13,16 +13,17 @@ case class JsonRPCBody(jsonrpc: String = "1.0", id: String = "scala-client", met
 
 class JsonRPCError(val code: Int, val message: String, val jvalue: JValue) extends IOException(s"$message (code: $code)")
 
-class BitcoinJsonRPCClient(config: AsyncHttpClientConfig, host: String, port: Int) {
+class BitcoinJsonRPCClient(config: AsyncHttpClientConfig, host: String, port: Int, ssl: Boolean) {
 
   val client: AsyncHttpClient = new AsyncHttpClient(config)
 
-  def this(user: String, password: String, host: String = "127.0.0.1", port: Int = 8332) = this(
+  def this(user: String, password: String, host: String = "127.0.0.1", port: Int = 8332, ssl: Boolean = false) = this(
     new AsyncHttpClientConfig.Builder()
       .setRealm(new Realm.RealmBuilder().setPrincipal(user).setPassword(password).setUsePreemptiveAuth(true).setScheme(Realm.AuthScheme.BASIC).build)
       .build,
     host,
-    port
+    port,
+    ssl
   )
 
   implicit val formats = DefaultFormats
@@ -31,7 +32,7 @@ class BitcoinJsonRPCClient(config: AsyncHttpClientConfig, host: String, port: In
     val promise = Promise[JValue]()
     println()
     client
-      .preparePost(s"http://$host:$port/")
+      .preparePost((if (ssl) "https" else "http") + s"://$host:$port/")
       .addHeader("Content-Type", "application/json")
       .setBody(write(JsonRPCBody(method = method, params = params)))
       .execute(new AsyncCompletionHandler[Unit] {
