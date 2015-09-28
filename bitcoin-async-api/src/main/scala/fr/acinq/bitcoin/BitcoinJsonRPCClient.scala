@@ -30,7 +30,6 @@ class BitcoinJsonRPCClient(config: AsyncHttpClientConfig, host: String, port: In
 
   def invoke(method: String, params: Any*): Future[JValue] = {
     val promise = Promise[JValue]()
-    println()
     client
       .preparePost((if (ssl) "https" else "http") + s"://$host:$port/")
       .addHeader("Content-Type", "application/json")
