@@ -9,6 +9,7 @@ import javax.crypto.spec.SecretKeySpec
 
 import com.ning.http.client._
 import fr.acinq.httpclient.HttpClient._
+import grizzled.slf4j.Logging
 import org.json4s.JValue
 import org.json4s.JsonAST._
 import org.json4s.{JValue, DefaultFormats}
@@ -169,7 +170,7 @@ object KrakenClient {
  * @param client AsyncHttpClient instance
  * @param ec execution context
  */
-class KrakenClient(apiKey: String, apiSecret: String, baseUri: String = "https://api.kraken.com/0")(implicit client: AsyncHttpClient = new AsyncHttpClient(), ec: ExecutionContext = ExecutionContext.Implicits.global) {
+class KrakenClient(apiKey: String, apiSecret: String, baseUri: String = "https://api.kraken.com/0")(implicit client: AsyncHttpClient = new AsyncHttpClient(), ec: ExecutionContext = ExecutionContext.Implicits.global) extends Logging {
 
   import KrakenClient._
 
@@ -222,6 +223,7 @@ class KrakenClient(apiKey: String, apiSecret: String, baseUri: String = "https:/
       case Some(_) => parameters
       case None => parameters + ("nonce" -> makeNonce)
     }
+    logger.debug(s"calling kraken method $method with parameters $parameters1")
     val request = Post(s"$baseUri/private/$method", FormData(parameters1))
     val signature = sign(apiSecretKey, request)
     request.copy(headers = HttpHeaders.RawHeader("Api-Key", apiKey) :: HttpHeaders.RawHeader("Api-Sign", signature) :: request.headers)
