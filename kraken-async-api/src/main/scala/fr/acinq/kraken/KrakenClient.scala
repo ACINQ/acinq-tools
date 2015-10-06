@@ -105,6 +105,8 @@ object AddOrderResponse {
 
 case class AddOrderResponse(descr: Map[String, String], txid: Seq[String])
 
+case class WithdrawResponse(refid: String)
+
 class KrakenClientError(val status: Int, val error: Seq[String] = Seq.empty[String]) extends IOException(s"Kraken API returned an error (status: $status, reason: ${error.mkString(",")}")
 
 object KrakenClient {
@@ -202,9 +204,8 @@ class KrakenClient(apiKey: String, apiSecret: String, baseUri: String = "https:/
    * @param currencyPairs list of currency pairs (defaults to Seq(CurrencyPair.XBTEUR))
    * @return
    */
-  def ticker(currencyPairs: Seq[String] = Seq(CurrencyPair.XBTEUR)): Future[Ticker] = {
+  def ticker(currencyPairs: Seq[String] = Seq(CurrencyPair.XBTEUR)): Future[Ticker] =
     call(buildPublicRequest("Ticker", Map("pair" -> currencyPairs.mkString(",")))).map(Ticker.extract)
-  }
 
   /**
    * builds an http request that can be used with an async http client
@@ -233,9 +234,8 @@ class KrakenClient(apiKey: String, apiSecret: String, baseUri: String = "https:/
    * retrieve the user's balance
    * @return a [[scala.concurrent.Future[Balance] ]]
    */
-  def balance: Future[Balance] = {
+  def balance: Future[Balance] =
     call(buildPrivateRequest("Balance", Map.empty[String, String])).map(Balance.extract)
-  }
 
   /**
    * register a new trade order
@@ -252,36 +252,33 @@ class KrakenClient(apiKey: String, apiSecret: String, baseUri: String = "https:/
    * }}}
    * @return a Future[AddOrderResponse]
    */
-  def addOrder(parameters: Map[String, String]): Future[AddOrderResponse] = {
+  def addOrder(parameters: Map[String, String]): Future[AddOrderResponse] =
     call(buildPrivateRequest("AddOrder", parameters)).map(AddOrderResponse.extract)
-  }
 
   /**
    * buy btcAmout BTC
    * @param btcAmount amount of BTC to buy
-   * @param ec
    * @return a Future[String] where the string will be the order id
    */
-  def buy(btcAmount: Double)(implicit ec: ExecutionContext): Future[String] = {
+  def buy(btcAmount: Double): Future[String] =
     addOrder(Map("pair" -> "XBTCZEUR", "type" -> "buy", "ordertype" -> "market", "volume" -> btcAmount.toString)).map(_.txid(0))
-  }
 
   /**
    * sell btcAmount BTC
    * @param btcAmount amount of BTC to sell
-   * @param ec
    * @return a Future[String] where the string will be the order id
    */
-  def sell(btcAmount: Double)(implicit ec: ExecutionContext): Future[String] = {
+  def sell(btcAmount: Double): Future[String] =
     addOrder(Map("pair" -> "XBTCZEUR", "type" -> "sell", "ordertype" -> "market", "volume" -> btcAmount.toString)).map(_.txid(0))
-  }
 
   /**
    * query the status of an order
    * @param txid
    * @return
    */
-  def queryOrders(txid: String): Future[Map[String, OrderInfo]] = {
+  def queryOrders(txid: String): Future[Map[String, OrderInfo]] =
     call(buildPrivateRequest("QueryOrders", Map("txid" -> txid))).map(OrderInfo.extract)
-  }
+
+  def withdraw(btcAmount: Double, keyName: String): Future[WithdrawResponse] =
+    call(buildPrivateRequest("Withdraw", Map("asset" -> "XXBT", "key" -> keyName, "amount" -> btcAmount.toString))).map(_.extract[WithdrawResponse])
 }
