@@ -139,17 +139,6 @@
         </plugins>
     </build>
 
-    <repositories>
-        <repository>
-            <id>aws-releases</id>
-            <url>s3://acinq-mvn-repo/releases</url>
-        </repository>
-        <repository>
-            <id>aws-snapshots</id>
-            <url>s3://acinq-mvn-repo/snapshots</url>
-        </repository>
-    </repositories>
-
     <dependencyManagement>
         <dependencies>
             <dependency>
