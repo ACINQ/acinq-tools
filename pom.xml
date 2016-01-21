@@ -132,13 +132,6 @@
                 </executions>
             </plugin>
         </plugins>
-        <extensions>
-            <extension>
-                <groupId>com.github.sstone</groupId>
-                <artifactId>aws-maven</artifactId>
-                <version>5.1.0.1</version>
-            </extension>
-        </extensions>
     </build>
 
     <repositories>
