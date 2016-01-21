@@ -10,7 +10,7 @@
 
     <groupId>fr.acinq.acinq-tools</groupId>
     <artifactId>acinq-tools_2.11</artifactId>
-    <version>1.2-RC7</version>
+    <version>1.2-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -83,6 +83,12 @@
                         <goals>
                             <goal>compile</goal>
                             <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>doc-jar</goal>
                         </goals>
                     </execution>
                 </executions>
