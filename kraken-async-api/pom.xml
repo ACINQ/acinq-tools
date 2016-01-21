@@ -17,12 +17,12 @@
         <dependency>
             <groupId>fr.acinq.acinq-tools</groupId>
             <artifactId>http-client_${scala.version.short}</artifactId>
-            <version>${parent.version}</version>
+            <version>${project.parent.version}</version>
         </dependency>
         <dependency>
             <groupId>fr.acinq.acinq-tools</groupId>
             <artifactId>utils_${scala.version.short}</artifactId>
-            <version>${parent.version}</version>
+            <version>${project.parent.version}</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe.akka</groupId>
