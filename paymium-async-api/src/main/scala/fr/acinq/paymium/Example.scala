@@ -5,8 +5,8 @@ import scala.util.{Failure, Success}
 object Example extends App {
 
   val client = new PaymiumClient(
-    token = "47714b09586e18e98b9cc8e67f7921968b6bc4a7c586e057233d0e36d7642838",
-    key = "6b0246d725a71dcf470fb785a90c2bdff98ba746936721dc8cd029949ee717c9"
+    token = "<token>",
+    key = "<key>"
     )
 
   import scala.concurrent.ExecutionContext.Implicits.global
