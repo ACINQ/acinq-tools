@@ -35,7 +35,7 @@ class PaymiumClient(credentials_opt: Option[Credentials] = None)(implicit client
   })
 
   implicit val formats = new DefaultFormats {
-    override def dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    override def dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
   }
 
   def handleError(response: Future[HttpResponse]) = response.flatMap(_ match {
