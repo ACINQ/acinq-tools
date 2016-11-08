@@ -15,7 +15,7 @@
     <dependencies>
         <dependency>
             <groupId>io.spray</groupId>
-            <artifactId>spray-caching_2.11</artifactId>
+            <artifactId>spray-caching_${scala.version.short}</artifactId>
             <version>${spray.version}</version>
         </dependency>
         <dependency>
